@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Edit,
   Printer,
@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -56,18 +55,19 @@ import { toast } from 'sonner';
 import { StatusHistoryItem } from '@/components/os/StatusHistoryItem';
 import { EditHistoryItem } from '@/components/os/EditHistoryItem';
 import { EditOsDialog } from '@/components/os/EditOsDialog';
+import Link from 'next/link';
 
 const updateFormSchema = z.object({
   statusId: z.string(),
-  note: z.string().optional(),
+  noteOrSolution: z.string().optional(),
   confirmedServiceIds: z.array(z.string()).optional(),
-  technicalSolution: z.string().optional(),
 });
 
 type UpdateFormValues = z.infer<typeof updateFormSchema>;
 
 export default function OsDetailPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [os, setOs] = useState<ServiceOrder | null>(null);
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,13 +96,35 @@ export default function OsDetailPage() {
     if (id) {
       fetchOsData();
     }
-  }, [id, form]);
+  }, [id]);
+
+  const selectedStatus = statuses.find(
+    (s) => s.id === form.watch('statusId')
+  );
 
   const onSubmit = async (values: UpdateFormValues) => {
+    if (selectedStatus?.isPickupStatus && !values.noteOrSolution) {
+      form.setError('noteOrSolution', {
+        type: 'manual',
+        message: 'A solução técnica é obrigatória para este status.',
+      });
+      return;
+    }
+
+    const payload = {
+      statusId: values.statusId,
+      confirmedServiceIds: values.confirmedServiceIds,
+      technicalSolution: selectedStatus?.isPickupStatus
+        ? values.noteOrSolution
+        : undefined,
+      note: !selectedStatus?.isPickupStatus ? values.noteOrSolution : undefined,
+    };
+
     try {
-      await api.patch(`/service-orders/${id}/status`, values);
+      await api.patch(`/service-orders/${id}/status`, payload);
       toast.success('Status da OS atualizado com sucesso');
       fetchOsData();
+      form.reset();
     } catch (error) {
       toast.error('Erro ao atualizar status da OS');
     }
@@ -113,16 +135,28 @@ export default function OsDetailPage() {
   };
 
   if (loading) {
-    return <p>Carregando...</p>;
+    return (
+        <PageLayout
+        title="Carregando OS..."
+        description="Aguarde enquanto buscamos os detalhes da sua Ordem de Serviço."
+        icon={<ListTodo className="w-8 h-8 text-primary" />}
+        >
+            <p>Carregando...</p>
+        </PageLayout>
+    );
   }
 
   if (!os) {
-    return <p>Ordem de Serviço não encontrada.</p>;
+    return (
+        <PageLayout
+        title="OS Não Encontrada"
+        description="A Ordem de Serviço que você está procurando não foi encontrada."
+        icon={<AlertCircle className="w-8 h-8 text-destructive" />}
+      >
+        <p>Ordem de Serviço não encontrada.</p>
+    </PageLayout>
+    );
   }
-
-  const selectedStatus = statuses.find(
-    (s) => s.id === form.watch('statusId')
-  );
 
   const unconfirmedServices =
     selectedStatus?.triggersEmail &&
@@ -147,10 +181,12 @@ export default function OsDetailPage() {
                 Editar
               </Button>
             </EditOsDialog>
-            <Button variant="outline">
-              <Printer className="mr-2 h-4 w-4" />
-              Imprimir Etiqueta
-            </Button>
+            <Link href={`/os/${id}/label`}>
+                <Button variant="outline">
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir Etiqueta
+                </Button>
+            </Link>
           </div>
 
           <Card>
@@ -210,16 +246,12 @@ export default function OsDetailPage() {
                                       service.serviceId
                                     )}
                                     onCheckedChange={(checked) => {
-                                      return checked
-                                        ? field.onChange([
-                                            ...(field.value || []),
-                                            service.serviceId,
-                                          ])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                              (id) => id !== service.serviceId
-                                            )
+                                      const updatedValue = checked
+                                        ? [...(field.value || []), service.serviceId]
+                                        : (field.value || []).filter(
+                                            (id) => id !== service.serviceId
                                           );
+                                      field.onChange(updatedValue);
                                     }}
                                   />
                                 </FormControl>
@@ -243,11 +275,7 @@ export default function OsDetailPage() {
 
                   <FormField
                     control={form.control}
-                    name={
-                      selectedStatus?.isPickupStatus
-                        ? 'technicalSolution'
-                        : 'note'
-                    }
+                    name='noteOrSolution'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>

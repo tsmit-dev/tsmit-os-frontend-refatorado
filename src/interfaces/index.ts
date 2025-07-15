@@ -7,6 +7,11 @@ export interface User {
 
 export type UserPayload = Omit<User, 'id'> & { password?: string };
 
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
 export interface Session {
   access_token: string;
   token_type: string;
@@ -66,8 +71,6 @@ export interface ServiceOrder {
     name: string;
     description: string;
   }[];
-  technicalSolution?: string;
-  confirmedServiceIds?: string[];
   observation?: string;
   statusId: string;
   createdAt: string;

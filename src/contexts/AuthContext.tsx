@@ -9,13 +9,15 @@ import {
   ReactNode,
 } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Session, User } from '@/interfaces';
+import { LoginPayload, Session, User } from '@/interfaces';
 import api from '@/api/api';
 
+type UserWithoutPassword = Omit<User, 'password'>;
+
 interface AuthContextType {
-  user: User | null;
+  user: UserWithoutPassword | null;
   loading: boolean;
-  login: (session: Session) => void;
+  login: (payload: LoginPayload) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
 }
@@ -23,7 +25,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: () => {},
+  login: async () => {},
   logout: () => {},
   hasPermission: () => false,
 });
@@ -31,7 +33,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithoutPassword | null>(null);
   const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState<any>(null);
   const router = useRouter();
@@ -40,7 +42,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
-      // TODO: Add a proper token validation endpoint
       const fetchUser = async () => {
         try {
           const { data } = await api.get('/auth/me');
@@ -64,10 +65,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [router, pathname]);
 
-  const login = (session: Session) => {
-    localStorage.setItem('access_token', session.access_token);
-    setUser(session.user);
-    router.push('/');
+  const login = async (payload: LoginPayload) => {
+    const { data } = await api.post<Session>('/auth/login', payload);
+    localStorage.setItem('access_token', data.access_token);
+    setUser(data.user);
+    router.push('/dashboard');
   };
 
   const logout = () => {
