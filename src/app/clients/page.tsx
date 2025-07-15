@@ -1,105 +1,97 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import api from '@/api/api';
+import { Briefcase, PlusCircle } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PageLayout } from '@/components/layout/PageLayout';
+import { ClientsTable } from '@/components/clients/ClientsTable';
+import { ClientFormSheet } from '@/components/clients/ClientFormSheet';
+import { Toaster } from '@/components/ui/sonner';
 import { Client } from '@/interfaces';
-import AppLayout from '@/app/AppLayout';
-import ClientForm from '@/components/common/ClientForm';
+import api from '@/api/api';
 
 export default function ClientsPage() {
+  const [searchTerm, setSearchTerm] = useState('');
   const [clients, setClients] = useState<Client[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const response = await api.get('/clients');
+        setClients(response.data);
+      } catch (error) {
+        console.error('Failed to fetch clients', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchClients();
   }, []);
 
-  const fetchClients = async () => {
-    try {
-      const { data } = await api.get('/clients');
-      setClients(data);
-    } catch (error) {
-      console.error('Failed to fetch clients', error);
-    }
+  const filteredClients = clients.filter(
+    (client: Client) =>
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.cnpj &&
+        client.cnpj.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (client.address &&
+        client.address.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const addClient = (client: Client) => {
+    setClients((prevClients) => [...prevClients, client]);
   };
 
-  const handleSaveClient = async (client: Omit<Client, 'id'>) => {
-    try {
-      if (editingClient) {
-        await api.put(`/clients/${editingClient.id}`, client);
-      } else {
-        await api.post('/clients', client);
-      }
-      setIsFormOpen(false);
-      setEditingClient(undefined);
-      fetchClients();
-    } catch (error) {
-      console.error('Failed to save client', error);
-    }
+  const updateClient = (client: Client) => {
+    setClients((prevClients) =>
+      prevClients.map((c) => (c.id === client.id ? client : c))
+    );
   };
 
-  const handleEdit = (client: Client) => {
-    setEditingClient(client);
-    setIsFormOpen(true);
-  };
-
-  const handleCancel = () => {
-    setIsFormOpen(false);
-    setEditingClient(undefined);
-  };
-
-  const handleDelete = async (clientId: string) => {
-    if (window.confirm('Tem certeza que deseja deletar este cliente?')) {
-      try {
-        await api.delete(`/clients/${clientId}`);
-        fetchClients();
-      } catch (error) {
-        console.error('Failed to delete client', error);
-      }
-    }
+  const deleteClient = (clientId: string) => {
+    setClients((prevClients) =>
+      prevClients.filter((client) => client.id !== clientId)
+    );
   };
 
   return (
-    <AppLayout>
-      <div>
-        <h1>Clientes</h1>
-        <button onClick={() => setIsFormOpen(true)}>Adicionar Cliente</button>
-        {isFormOpen && (
-          <ClientForm
-            client={editingClient}
-            onSave={handleSaveClient}
-            onCancel={handleCancel}
-          />
-        )}
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>CNPJ</th>
-              <th>Endereço</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((client) => (
-              <tr key={client.id}>
-                <td>{client.name}</td>
-                <td>{client.email}</td>
-                <td>{client.cnpj}</td>
-                <td>{client.address}</td>
-                <td>
-                  <button onClick={() => handleEdit(client)}>Editar</button>
-                  <button onClick={() => handleDelete(client.id)} className="delete">
-                    Deletar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </AppLayout>
+    <>
+      <PageLayout
+        title="Gerenciamento de Clientes"
+        description="Nesta página, você pode gerenciar os clientes cadastrados no sistema."
+        icon={<Briefcase className="w-8 h-8 text-primary" />}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <Input
+              placeholder="Buscar por nome, CNPJ ou endereço..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80"
+            />
+            <ClientFormSheet onClientAdded={addClient}>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Adicionar Cliente
+              </Button>
+            </ClientFormSheet>
+          </div>
+          {loading ? (
+            <p>Carregando...</p>
+          ) : (
+            <ClientsTable
+              clients={filteredClients}
+              onClientUpdated={updateClient}
+              onClientDeleted={deleteClient}
+            />
+          )}
+        </div>
+      </PageLayout>
+      <Toaster />
+    </>
   );
 }
