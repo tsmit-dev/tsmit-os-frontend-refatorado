@@ -61,18 +61,17 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md mx-4">
-        <CardHeader className="text-center p-8">
-          <TsmitLogo className="w-40 mx-auto mb-6" />
-          <CardTitle className="text-2xl font-bold">Acesse sua Conta</CardTitle>
+    <main className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-950">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center p-6">
+          <TsmitLogo className="w-32 mx-auto mb-4" />
           <CardDescription>
             Sistema de Controle de Ordens de Serviço
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-8 pt-0">
+        <CardContent className="p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -113,7 +112,7 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={isLoggingIn}
               >
-                <LogIn className="mr-2 h-5 w-5" />
+                <LogIn className="mr-2 h-4 w-4" />
                 {isLoggingIn ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
