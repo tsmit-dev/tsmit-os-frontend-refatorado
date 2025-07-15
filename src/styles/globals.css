@@ -1,0 +1,21 @@
+:root {
+  --primary-color: #21628E;
+  --secondary-color: #2F7DAC;
+  --background-light: #FFFFFF;
+  --background-dark: #F0F0F0;
+  --text-color: #333333;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--background-dark);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
