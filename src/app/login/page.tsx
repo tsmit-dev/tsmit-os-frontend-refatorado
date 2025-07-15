@@ -10,7 +10,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,10 +60,10 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-950">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center p-6">
-          <TsmitLogo className="w-32 mx-auto mb-4" />
+    <main className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Card className="w-full max-w-sm shadow-lg">
+        <CardHeader className="text-center p-6 space-y-2">
+          <TsmitLogo className="w-36 mx-auto" />
           <CardDescription>
             Sistema de Controle de Ordens de Serviço
           </CardDescription>
@@ -112,7 +111,7 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={isLoggingIn}
               >
-                <LogIn className="mr-2 h-4 w-4" />
+                <LogIn className="mr-2 h-5 w-5" />
                 {isLoggingIn ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
