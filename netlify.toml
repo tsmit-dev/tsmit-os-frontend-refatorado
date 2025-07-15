@@ -7,6 +7,6 @@
   # Directory to publish
   publish = ".next"
 
-[plugins]
-  # Essential plugin for Next.js on Netlify
-  - package: "@netlify/plugin-nextjs"
+# The following plugin is essential for Next.js on Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
