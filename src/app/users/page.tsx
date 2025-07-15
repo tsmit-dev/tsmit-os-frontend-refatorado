@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/api/api';
-import { User, Role } from '@/interfaces';
+import { User, Role, UserPayload } from '@/interfaces';
 import AppLayout from '@/app/AppLayout';
 import UserForm from '@/components/common/UserForm';
 
@@ -35,18 +35,13 @@ export default function UsersPage() {
     }
   };
 
-  const handleSaveUser = async (user: Omit<User, 'id' | 'role'>) => {
+  const handleSaveUser = async (user: UserPayload) => {
     try {
-      const payload: any = { ...user };
-      // Prevent sending an empty password, so the backend doesn't overwrite it
-      if (!payload.password) {
-        delete payload.password;
-      }
-
+      // The user payload is already correctly typed, so we can use it directly
       if (editingUser) {
-        await api.put(`/users/${editingUser.id}`, payload);
+        await api.put(`/users/${editingUser.id}`, user);
       } else {
-        await api.post('/users', payload);
+        await api.post('/users', user);
       }
       setIsFormOpen(false);
       setEditingUser(undefined);

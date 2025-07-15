@@ -3,11 +3,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/api/api';
-import { User, Session } from '@/interfaces';
+import { User } from '@/interfaces';
+import { AxiosError } from 'axios';
+
+// Define a type for the login credentials
+type LoginCredentials = {
+  email: string;
+  password: string;
+};
 
 interface AuthContextType {
   user: User | null;
-  login: (credentials: any) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   isAuthenticated: () => boolean;
 }
@@ -34,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkUser();
   }, []);
 
-  const login = async (credentials: any) => {
+  const login = async (credentials: LoginCredentials) => {
     try {
       const { data } = await api.post('/auth/login', credentials);
       const { session } = data;
@@ -44,8 +51,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData.user);
       router.push('/dashboard');
     } catch (error) {
-      console.error('Login failed', error);
-      // Handle login error (e.g., show a notification)
+      const err = error as AxiosError;
+      console.error('Login failed', err.response?.data);
     }
   };
 

@@ -3,13 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import api from '@/api/api';
-import { ServiceOrder, Client, User, Status } from '@/interfaces';
+import { ServiceOrder, Client, Status } from '@/interfaces';
 import AppLayout from '@/app/AppLayout';
+
+// Define a type for the items that have an 'id' and 'name'
+type Nameable = { id: string; name: string };
 
 export default function ServiceOrdersPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
 
   useEffect(() => {
@@ -28,20 +30,18 @@ export default function ServiceOrdersPage() {
 
   const fetchRelatedData = async () => {
     try {
-      const [clientsRes, usersRes, statusesRes] = await Promise.all([
+      const [clientsRes, statusesRes] = await Promise.all([
         api.get('/clients'),
-        api.get('/users'),
         api.get('/statuses'),
       ]);
       setClients(clientsRes.data);
-      setUsers(usersRes.data);
       setStatuses(statusesRes.data);
     } catch (error) {
       console.error('Failed to fetch related data', error);
     }
   };
 
-  const getNameById = (collection: any[], id: string) => {
+  const getNameById = (collection: Nameable[], id: string) => {
     const item = collection.find((item) => item.id === id);
     return item ? item.name : 'N/A';
   };

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/api/api';
 import { ServiceOrder, Status } from '@/interfaces';
 import AppLayout from '@/app/AppLayout';
-import styles from '../os-details.module.css';
+import styles from './os-details.module.css';
+import { AxiosError } from 'axios';
 
 export default function ServiceOrderDetailPage() {
   const [os, setOs] = useState<ServiceOrder | null>(null);
@@ -16,14 +17,7 @@ export default function ServiceOrderDetailPage() {
   const router = useRouter();
   const { id } = params;
 
-  useEffect(() => {
-    if (id) {
-      fetchOsDetails();
-      fetchStatuses();
-    }
-  }, [id]);
-
-  const fetchOsDetails = async () => {
+  const fetchOsDetails = useCallback(async () => {
     try {
       const { data } = await api.get(`/os/${id}`);
       setOs(data);
@@ -31,7 +25,14 @@ export default function ServiceOrderDetailPage() {
     } catch (error) {
       console.error('Failed to fetch OS details', error);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchOsDetails();
+      fetchStatuses();
+    }
+  }, [id, fetchOsDetails]);
 
   const fetchStatuses = async () => {
     try {
@@ -51,9 +52,10 @@ export default function ServiceOrderDetailPage() {
       alert('Status atualizado com sucesso!');
       fetchOsDetails(); // Refresh details
       setObservation('');
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as AxiosError<{ message: string }>;
       console.error('Failed to update status', error);
-      alert(error.response?.data?.message || 'Erro ao atualizar status.');
+      alert(err.response?.data?.message || 'Erro ao atualizar status.');
     }
   };
 
