@@ -5,16 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      router.push('/dashboard');
-    } else {
-      router.push('/login');
+    if (!loading) {
+      if (user) {
+        router.push('/dashboard');
+      } else {
+        router.push('/login');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [user, loading, router]);
 
-  return <div>Loading...</div>;
+  return <div>Carregando...</div>;
 }
