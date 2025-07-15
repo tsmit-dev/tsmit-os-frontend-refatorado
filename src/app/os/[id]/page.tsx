@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '@/api/api';
 import { ServiceOrder, Status } from '@/interfaces';
 import AppLayout from '@/app/AppLayout';
-import styles from './os-details.module.css';
+import styles from '../os-details.module.css'; // Corrected import path
 import { AxiosError } from 'axios';
 
 export default function ServiceOrderDetailPage() {
