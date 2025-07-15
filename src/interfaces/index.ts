@@ -40,6 +40,9 @@ export interface Service {
 export interface Status {
   id: string;
   name: string;
+  triggersEmail?: boolean;
+  isPickupStatus?: boolean;
+  isFinal?: boolean;
 }
 
 export interface ServiceOrder {
@@ -67,6 +70,24 @@ export interface ServiceOrder {
   confirmedServiceIds?: string[];
   observation?: string;
   statusId: string;
+  createdAt: string;
+  status: {
+    name: string;
+  };
+  statusHistory: {
+    fromStatus: { name: string };
+    toStatus: { name: string };
+    createdAt: string;
+    user: { name: string };
+    note?: string;
+  }[];
+  editHistory: {
+    field: string;
+    oldValue: string;
+    newValue: string;
+    createdAt: string;
+    user: { name: string };
+  }[];
 }
 
 export interface Settings {

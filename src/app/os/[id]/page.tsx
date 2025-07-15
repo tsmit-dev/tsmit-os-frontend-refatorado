@@ -1,129 +1,382 @@
+
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import api from '@/api/api';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import {
+  Edit,
+  Printer,
+  HardDrive,
+  Briefcase,
+  FileText,
+  CheckCircle,
+  Wrench,
+  History,
+  ListTree,
+  RotateCcw,
+  AlertCircle,
+  ListTodo,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { PageLayout } from '@/components/layout/PageLayout';
 import { ServiceOrder, Status } from '@/interfaces';
-import AppLayout from '@/app/AppLayout';
-import styles from '../os-details.module.css'; // Corrected import path
-import { AxiosError } from 'axios';
+import { StatusBadge } from '@/components/os/StatusBadge';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import api from '@/api/api';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { toast } from 'sonner';
+import { StatusHistoryItem } from '@/components/os/StatusHistoryItem';
+import { EditHistoryItem } from '@/components/os/EditHistoryItem';
+import { EditOsDialog } from '@/components/os/EditOsDialog';
 
-export default function ServiceOrderDetailPage() {
+const updateFormSchema = z.object({
+  statusId: z.string(),
+  note: z.string().optional(),
+  confirmedServiceIds: z.array(z.string()).optional(),
+  technicalSolution: z.string().optional(),
+});
+
+type UpdateFormValues = z.infer<typeof updateFormSchema>;
+
+export default function OsDetailPage() {
+  const { id } = useParams();
   const [os, setOs] = useState<ServiceOrder | null>(null);
   const [statuses, setStatuses] = useState<Status[]>([]);
-  const [newStatusId, setNewStatusId] = useState('');
-  const [observation, setObservation] = useState('');
-  const params = useParams();
-  const router = useRouter();
-  const { id } = params;
+  const [loading, setLoading] = useState(true);
 
-  const fetchOsDetails = useCallback(async () => {
+  const form = useForm<UpdateFormValues>({
+    resolver: zodResolver(updateFormSchema),
+  });
+
+  const fetchOsData = async () => {
     try {
-      const { data } = await api.get(`/os/${id}`);
-      setOs(data);
-      setNewStatusId(data.statusId);
+      const [osResponse, statusesResponse] = await Promise.all([
+        api.get(`/service-orders/${id}`),
+        api.get('/statuses'),
+      ]);
+      setOs(osResponse.data);
+      setStatuses(statusesResponse.data);
+      form.setValue('statusId', osResponse.data.statusId);
     } catch (error) {
-      console.error('Failed to fetch OS details', error);
+      toast.error('Erro ao carregar dados da OS');
+    } finally {
+      setLoading(false);
     }
-  }, [id]);
+  };
 
   useEffect(() => {
     if (id) {
-      fetchOsDetails();
-      fetchStatuses();
+      fetchOsData();
     }
-  }, [id, fetchOsDetails]);
+  }, [id, form]);
 
-  const fetchStatuses = async () => {
+  const onSubmit = async (values: UpdateFormValues) => {
     try {
-      const { data } = await api.get('/statuses');
-      setStatuses(data);
+      await api.patch(`/service-orders/${id}/status`, values);
+      toast.success('Status da OS atualizado com sucesso');
+      fetchOsData();
     } catch (error) {
-      console.error('Failed to fetch statuses', error);
+      toast.error('Erro ao atualizar status da OS');
     }
   };
 
-  const handleStatusUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStatusId) return;
-
-    try {
-      await api.put(`/os/${id}/status`, { newStatusId, observation });
-      alert('Status atualizado com sucesso!');
-      fetchOsDetails(); // Refresh details
-      setObservation('');
-    } catch (error) {
-      const err = error as AxiosError<{ message: string }>;
-      console.error('Failed to update status', error);
-      alert(err.response?.data?.message || 'Erro ao atualizar status.');
-    }
+  const handleOsUpdated = (updatedOs: ServiceOrder) => {
+    setOs(updatedOs);
   };
 
-  if (!os) {
-    return <AppLayout><div>Carregando...</div></AppLayout>;
+  if (loading) {
+    return <p>Carregando...</p>;
   }
 
-  const getStatusName = (statusId: string) => statuses.find(s => s.id === statusId)?.name || 'Desconhecido';
+  if (!os) {
+    return <p>Ordem de Serviço não encontrada.</p>;
+  }
+
+  const selectedStatus = statuses.find(
+    (s) => s.id === form.watch('statusId')
+  );
+
+  const unconfirmedServices =
+    selectedStatus?.triggersEmail &&
+    os.contractedServices.length !==
+      (form.watch('confirmedServiceIds')?.length || 0);
 
   return (
-    <AppLayout>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h1>Detalhes da OS: {os.order_number}</h1>
-          <span className={styles.statusBadge} style={{ backgroundColor: '#21628E' }}>
-            {getStatusName(os.statusId)}
-          </span>
-        </div>
-
-        <div className={styles.grid}>
-          <div className={styles.card}>
-            <h2>Informações do Cliente</h2>
-            <p><strong>Nome:</strong> {os.client_snapshot.name}</p>
-            <p><strong>Email:</strong> {os.client_snapshot.email}</p>
+    <PageLayout
+      title={`OS: ${os.order_number}`}
+      description={`Aberto em ${format(
+        new Date(os.createdAt),
+        'dd/MM/yyyy'
+      )} por ${os.analyst}`}
+      icon={<ListTodo className="w-8 h-8 text-primary" />}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex gap-2">
+            <EditOsDialog os={os} onOsUpdated={handleOsUpdated}>
+              <Button variant="outline">
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            </EditOsDialog>
+            <Button variant="outline">
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir Etiqueta
+            </Button>
           </div>
 
-          <div className={styles.card}>
-            <h2>Equipamento</h2>
-            <p><strong>Tipo:</strong> {os.equipment.type}</p>
-            <p><strong>Marca:</strong> {os.equipment.brand}</p>
-            <p><strong>Modelo:</strong> {os.equipment.model}</p>
-            <p><strong>Nº de Série:</strong> {os.equipment.serialNumber}</p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="w-5 h-5" /> Atualização da OS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={form.control}
+                    name="statusId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {statuses.map((status) => (
+                              <SelectItem key={status.id} value={status.id}>
+                                {status.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-          <div className={`${styles.card} ${styles.fullWidth}`}>
-            <h2>Problema Relatado</h2>
-            <p>{os.reportedProblem}</p>
-          </div>
+                  {selectedStatus?.triggersEmail && (
+                    <div>
+                      <FormLabel>Confirmação de Serviços</FormLabel>
+                      <div className="space-y-2 mt-2">
+                        {os.contractedServices.map((service) => (
+                          <FormField
+                            key={service.serviceId}
+                            control={form.control}
+                            name="confirmedServiceIds"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center gap-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(
+                                      service.serviceId
+                                    )}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([
+                                            ...(field.value || []),
+                                            service.serviceId,
+                                          ])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (id) => id !== service.serviceId
+                                            )
+                                          );
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel>{service.name}</FormLabel>
+                              </FormItem>
+                            )}
+                          />
+                        ))}
+                      </div>
+                      {unconfirmedServices && (
+                        <Alert variant="destructive" className="mt-4">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Atenção</AlertTitle>
+                          <AlertDescription>
+                            Confirme todos os serviços antes de avançar.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                  )}
 
-          <div className={`${styles.card} ${styles.fullWidth}`}>
-            <h2>Serviços Contratados</h2>
-            <ul>
-              {os.contractedServices.map(service => (
-                <li key={service.serviceId}>{service.name}</li>
+                  <FormField
+                    control={form.control}
+                    name={
+                      selectedStatus?.isPickupStatus
+                        ? 'technicalSolution'
+                        : 'note'
+                    }
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {selectedStatus?.isPickupStatus
+                            ? 'Solução Técnica'
+                            : 'Nota'}
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={
+                              selectedStatus?.isPickupStatus
+                                ? 'Descreva a solução técnica aplicada...'
+                                : 'Adicione uma nota...'
+                            }
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={
+                      form.formState.isSubmitting || unconfirmedServices
+                    }
+                  >
+                    Salvar Alterações
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HardDrive className="w-5 h-5" /> Equipamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>
+                <strong>Tipo:</strong> {os.equipment.type}
+              </p>
+              <p>
+                <strong>Marca:</strong> {os.equipment.brand}
+              </p>
+              <p>
+                <strong>Modelo:</strong> {os.equipment.model}
+              </p>
+              <p>
+                <strong>N/S:</strong> {os.equipment.serialNumber}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5" /> Cliente e Contato
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>
+                <strong>Cliente:</strong> {os.client_snapshot.name}
+              </p>
+              <p>
+                <strong>Email:</strong> {os.client_snapshot.email}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" /> Problema Relatado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{os.reportedProblem}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" /> Serviços Contratados
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {os.contractedServices.map((service) => (
+                <Badge key={service.serviceId} variant="secondary">
+                  {service.name}
+                </Badge>
               ))}
-            </ul>
-          </div>
-
-          <div className={`${styles.card} ${styles.fullWidth}`}>
-            <h2>Atualização de Status</h2>
-            <form onSubmit={handleStatusUpdate} className={styles.statusForm}>
-              <select value={newStatusId} onChange={(e) => setNewStatusId(e.target.value)}>
-                {statuses.map(status => (
-                  <option key={status.id} value={status.id}>{status.name}</option>
-                ))}
-              </select>
-              <textarea
-                placeholder="Adicionar observação (opcional)"
-                value={observation}
-                onChange={(e) => setObservation(e.target.value)}
-              />
-              <button type="submit">Atualizar Status</button>
-            </form>
-          </div>
-
+            </CardContent>
+          </Card>
         </div>
-        <button onClick={() => router.back()} className={styles.backButton}>Voltar</button>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" /> Histórico de Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul>
+                {os.statusHistory.map((history, index) => (
+                  <StatusHistoryItem key={index} history={history} />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+          {os.editHistory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ListTree className="w-5 h-5" /> Histórico de Edição
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul>
+                  {os.editHistory.map((history, index) => (
+                    <EditHistoryItem key={index} history={history} />
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
-    </AppLayout>
+    </PageLayout>
   );
 }
