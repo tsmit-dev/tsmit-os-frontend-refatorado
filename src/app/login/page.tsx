@@ -10,6 +10,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,9 +37,13 @@ type FormValues = z.infer<typeof formSchema>;
 export default function LoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { login } = useAuth();
-  
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -56,17 +61,18 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-black">
-      <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center space-y-4">
-          <TsmitLogo className="w-48 mx-auto text-primary" />
+    <main className="flex items-center justify-center min-h-screen bg-background">
+      <Card className="w-full max-w-md mx-4">
+        <CardHeader className="text-center p-8">
+          <TsmitLogo className="w-40 mx-auto mb-6" />
+          <CardTitle className="text-2xl font-bold">Acesse sua Conta</CardTitle>
           <CardDescription>
             Sistema de Controle de Ordens de Serviço
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-8 pt-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="email"
@@ -93,7 +99,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="******"
+                        placeholder="••••••••"
                         {...field}
                       />
                     </FormControl>
@@ -107,7 +113,7 @@ export default function LoginPage() {
                 className="w-full"
                 disabled={isLoggingIn}
               >
-                <LogIn className="mr-2 h-4 w-4" />
+                <LogIn className="mr-2 h-5 w-5" />
                 {isLoggingIn ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
